@@ -1,4 +1,4 @@
-package com.github.yafna.events.handlers;
+package com.github.yafna.events.handlers.domain;
 
 import java.util.List;
 

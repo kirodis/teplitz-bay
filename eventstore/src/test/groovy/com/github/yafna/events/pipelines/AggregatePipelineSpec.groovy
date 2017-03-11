@@ -2,7 +2,7 @@ package com.github.yafna.events.pipelines
 
 import com.github.yafna.events.Event
 import com.github.yafna.events.aggregate.EventScanner
-import com.github.yafna.events.handlers.DomainHandlerRegistry
+import com.github.yafna.events.handlers.domain.DomainHandlerRegistry
 import com.github.yafna.events.rabbits.Rabbit
 import com.github.yafna.events.rabbits.RabbitAdded
 import com.github.yafna.events.rabbits.RabbitInit

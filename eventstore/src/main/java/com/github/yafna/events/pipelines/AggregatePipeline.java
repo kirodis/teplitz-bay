@@ -4,7 +4,7 @@ import com.github.yafna.events.Event;
 import com.github.yafna.events.aggregate.Aggregate;
 import com.github.yafna.events.annotations.EvType;
 import com.github.yafna.events.annotations.Origin;
-import com.github.yafna.events.handlers.DomainHandlerRegistry;
+import com.github.yafna.events.handlers.domain.DomainHandlerRegistry;
 import com.github.yafna.events.store.EventStore;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;

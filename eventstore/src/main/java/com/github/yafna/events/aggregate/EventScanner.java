@@ -3,8 +3,8 @@ package com.github.yafna.events.aggregate;
 import com.github.yafna.events.Event;
 import com.github.yafna.events.annotations.EvType;
 import com.github.yafna.events.annotations.Handler;
-import com.github.yafna.events.handlers.DomainHandler;
-import com.github.yafna.events.handlers.MapDomainHandlerRegistry;
+import com.github.yafna.events.handlers.domain.DomainHandler;
+import com.github.yafna.events.handlers.domain.MapDomainHandlerRegistry;
 import com.github.yafna.events.utils.Enumerator;
 import lombok.SneakyThrows;
 
