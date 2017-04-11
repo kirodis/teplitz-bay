@@ -2,8 +2,7 @@ package com.github.yafna.events.store.file
 
 import com.github.yafna.events.Event
 import com.github.yafna.events.XJson
-import com.github.yafna.events.store.file.FileEventStore
-import com.github.yafna.events.store.file.GsonFileEventStore
+import com.github.yafna.events.store.EventStore
 import spock.lang.Specification
 import spock.lang.Unroll
 
@@ -22,7 +21,7 @@ public class GsonFileEventStoreSpec extends Specification {
     String origin = "hedgehog"
 
     Clock clock = Clock.fixed(Instant.parse(now), ZoneId.of("UTC"))
-    GsonFileEventStore subj = new GsonFileEventStore(clock, root)
+    EventStore subj = new GsonFileEventStore(clock, root)
 
     @Unroll
     def "given event [#type] should persist it under [#subdir]"() {
