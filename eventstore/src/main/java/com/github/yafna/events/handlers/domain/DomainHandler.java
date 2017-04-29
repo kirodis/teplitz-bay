@@ -4,7 +4,8 @@ import com.github.yafna.events.Event;
 
 /**
  * Only handlers of this type of event are allowed to update domain models.
- * However they are not allowed to emit further events (unlike {@link EventHandler}).
+ * However they are not allowed to emit further events
+ * (unlike {@link com.github.yafna.events.handlers.event.EventHandler}).
  *
  * @param <A> Origin type
  * @param <T> Event type
