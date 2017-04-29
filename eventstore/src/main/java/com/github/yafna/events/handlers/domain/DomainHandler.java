@@ -1,6 +1,7 @@
 package com.github.yafna.events.handlers.domain;
 
 import com.github.yafna.events.Event;
+import com.github.yafna.events.handlers.Handler;
 
 /**
  * Only handlers of this type of event are allowed to update domain models.
@@ -10,7 +11,7 @@ import com.github.yafna.events.Event;
  * @param <A> Origin type
  * @param <T> Event type
  */
-public interface DomainHandler<A, T> {
+public interface DomainHandler<A, T> extends Handler<T> {
 
     /**
      * Apply event
