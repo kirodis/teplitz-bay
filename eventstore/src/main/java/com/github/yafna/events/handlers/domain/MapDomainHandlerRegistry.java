@@ -1,5 +1,6 @@
 package com.github.yafna.events.handlers.domain;
 
+import com.github.yafna.events.aggregate.AggregateUtils;
 import com.github.yafna.events.annotations.EvType;
 import lombok.AllArgsConstructor;
 
@@ -17,7 +18,6 @@ public class MapDomainHandlerRegistry<A> implements DomainHandlerRegistry<A> {
     @SuppressWarnings("unchecked")
     @Override
     public <T> List<DomainHandler<A, T>> get(Class<T> clazz) {
-        EvType type = clazz.getAnnotation(EvType.class);
-        return (List<DomainHandler<A, T>>) (Object) handlers.get(type.value());
+        return (List<DomainHandler<A, T>>) (Object) handlers.get(AggregateUtils.resolveEventType(clazz));
     }
 }
