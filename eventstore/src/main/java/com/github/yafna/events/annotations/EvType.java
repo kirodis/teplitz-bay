@@ -16,4 +16,11 @@ public @interface EvType {
      * It might be practical to support multiple event classes to represent the same event name.
      */
     String value() default "";
+
+    /**
+     * If origin is specified here explicit, this value takes priority over resolving the value from 
+     * DomainEvent interface generic parameter. This allows to create events even when no dedicated 
+     * class is present for origin.     
+     */
+    String origin() default "";
 }

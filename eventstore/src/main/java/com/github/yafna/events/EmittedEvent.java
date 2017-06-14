@@ -1,8 +1,11 @@
 package com.github.yafna.events;
 
 import com.github.yafna.events.aggregate.AggregateUtils;
+import com.github.yafna.events.annotations.EvType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+
+import java.util.Objects;
 
 /**
  * Event that was not persisted yet. Designed to be returned as emitted in event handlers. 
@@ -11,19 +14,21 @@ import lombok.Getter;
  */
 @AllArgsConstructor
 @Getter
-public class EmittedEvent<T extends DomainEvent> {
+public class EmittedEvent<T> {
     final String origin;
     final String aggregateId;
     final String type;
     final T payload;
 
-    public static EmittedEvent<?> of(String origin, String aggregateId, String type) {
+    public static EmittedEvent of(String origin, String aggregateId, String type) {
         return new EmittedEvent<>(origin, aggregateId, type, null);
     }
 
-    public static <T extends DomainEvent> EmittedEvent<T> of(String aggregateId, T payload) {
-        String origin = AggregateUtils.originFromEvent(payload.getClass());
-        String type = AggregateUtils.resolveEventType(payload.getClass());
+    public static <A, T extends DomainEvent<A>> EmittedEvent<T> of(String aggregateId, T payload) {
+        EvType evType = AggregateUtils.eventType(payload.getClass());
+        String explicitOrigin = evType.origin();
+        String origin = Objects.equals("", explicitOrigin) ? AggregateUtils.origin(payload.getClass()) : explicitOrigin;
+        String type = evType.value();
         return new EmittedEvent<>(origin, aggregateId, type, payload);
     }
 }

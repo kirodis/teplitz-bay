@@ -15,7 +15,12 @@ public class RabbitCountingHandler implements EventHandler<RabbitAdded> {
     
     @Override
     public Stream<EmittedEvent<?>> apply(Event meta, RabbitAdded payload) {
-        count.incrementAndGet();
-        return Stream.of();
+        long v = count.incrementAndGet();
+        RabbitNumberIsEven cool = new RabbitNumberIsEven(v, "cool");
+        if (v % 2 == 0) { 
+            return Stream.of(EmittedEvent.of(Rabbits.ID, cool)); 
+        } else { 
+            return Stream.of();
+        }
     }
 }

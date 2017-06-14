@@ -2,6 +2,7 @@ package com.github.yafna.events.pipelines
 
 import com.github.yafna.events.dispatcher.GsonEventDispatcher
 import com.github.yafna.events.handlers.count.RabbitCountingHandler
+import com.github.yafna.events.handlers.count.Rabbits
 import com.github.yafna.events.rabbits.Rabbit
 import com.github.yafna.events.rabbits.RabbitAdded
 import com.github.yafna.events.store.file.GsonFileEventStore
@@ -10,6 +11,7 @@ import spock.lang.Specification
 
 import java.time.Clock
 import java.util.concurrent.TimeUnit
+import java.util.stream.Collectors
 
 class EventPipelineSpec extends Specification {
 
@@ -32,6 +34,8 @@ class EventPipelineSpec extends Specification {
             subj.executor.awaitQuiescence(10, TimeUnit.SECONDS)
         then:
             handler.count.get() == 2
+        when:
+            store.getEvents("rabbits", Rabbits.ID, null).collect(Collectors.toList()) == ["11"]
         when:
             store.persist("rabbit", "5", "fried", payload("Gamma", "Hot"))
             subj.executor.awaitQuiescence(10, TimeUnit.SECONDS)

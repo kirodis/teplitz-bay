@@ -27,7 +27,7 @@ public class EventPipeline<A, T extends DomainEvent<A>> {
     public EventPipeline(
             EventDispatcher dispatcher, Class<T> eventType, EventHandler<T> handler, String handlerId, Clock clock
     ) {
-        origin = AggregateUtils.originFromEvent(eventType);
+        origin = AggregateUtils.origin(eventType);
         this.dispatcher = dispatcher;
         this.handler = handler;
         this.handlerId = handlerId;
@@ -37,7 +37,7 @@ public class EventPipeline<A, T extends DomainEvent<A>> {
     }
 
     private void recap(EventDispatcher dispatcher, Class<T> eventType, Instant start) {
-        String type = AggregateUtils.resolveEventType(eventType);
+        String type = AggregateUtils.eventType(eventType).value();
 
         for (Instant t = start; ; ) {
             Stream<EventMeta<T>> recap = dispatcher.subscribe(origin, type, t, eventType, this::process);
@@ -55,7 +55,7 @@ public class EventPipeline<A, T extends DomainEvent<A>> {
     }
 
     private Instant process(Event meta, T payload) {
-        Stream<EmittedEvent<?>> emitted = Stream.concat(
+        Stream<EmittedEvent> emitted = Stream.concat(
                 handler.apply(meta, payload),
                 Stream.of(EmittedEvent.of("handlers", handlerId, "handled"))
         );

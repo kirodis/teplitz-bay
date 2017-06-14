@@ -31,7 +31,7 @@ public abstract class EventDispatcher {
         return store.persist(origin, aggregateId, type, json);
     }
 
-    public long store(String causeId, String corrId, Stream<EmittedEvent<?>> events) {
+    public long store(String causeId, String corrId, Stream<EmittedEvent> events) {
         ProtoEvent[] protoEvents = events.map(emitted -> {
             String json = serialize(emitted.getPayload());
             return new ProtoEvent(emitted.getAggregateId(), emitted.getOrigin(), emitted.getType(), json);
