@@ -16,4 +16,14 @@ public class AggregateUtilsTest {
     public void typeAnonymousl() {
         Assert.assertEquals("added", AggregateUtils.eventType(EVENT.getClass()).value());
     }
+
+    @Test
+    public void originNormal() {
+        Assert.assertEquals("rabbit", AggregateUtils.origin(RabbitAdded.class));
+    }
+
+    @Test
+    public void originAnonymous() {
+        Assert.assertEquals("rabbit", AggregateUtils.origin(EVENT.getClass()));
+    }
 }
