@@ -34,7 +34,6 @@ class EventPipelineSpec extends Specification {
             subj.executor.awaitQuiescence(10, TimeUnit.SECONDS)
         then:
             handler.count.get() == 2
-        when:
             store.getEvents("rabbits", Rabbits.ID, null).collect(Collectors.toList()) == ["11"]
         when:
             store.persist("rabbit", "5", "fried", payload("Gamma", "Hot"))
