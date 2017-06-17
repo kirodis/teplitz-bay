@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit
 import java.util.stream.Collectors
 
 class EventPipelineSpec extends Specification {
+    static final String HANDLER_ID = "rabbit-counter"
 
     ForkJoinPool executor = new ForkJoinPool()
     Clock clock = Clock.systemUTC()
@@ -25,14 +26,16 @@ class EventPipelineSpec extends Specification {
         given:
             def handler = new RabbitCountingHandler()
             EventPipeline<Rabbit, RabbitAdded> subj = new EventPipeline(
-                    new GsonEventDispatcher(store, executor), RabbitAdded.class, handler, "rabbit-counter", clock, executor 
+                    new GsonEventDispatcher(store, executor), RabbitAdded.class, handler, HANDLER_ID, clock, executor 
             )
         when: "rabbit is added"
-            store.persist("rabbit", "1", "added", payload("Alfa", "Longear"))
+            def added1 = store.persist("rabbit", "1", "added", payload("Alfa", "Longear"))
             executor.awaitQuiescence(10, TimeUnit.SECONDS)
         then: "count increases to 1"
             handler.count.get() == 1
-
+            store.getEvents(EventPipeline.AGGREGATE_NAME, HANDLER_ID, null).map(
+                    {[it.type, it.causeId, it.corrId]}
+            ).collect(Collectors.toList()) == [[EventPipeline.EVENT_TYPE_HANDLED, added1.id, added1.id]]
         when: "rabbit is added again"
             store.persist("rabbit", "2", "added", payload("Beta", "Furtail"))
             executor.awaitQuiescence(10, TimeUnit.SECONDS)

@@ -13,11 +13,17 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.Optional;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Stream;
 
 @Slf4j
 public class EventPipeline<A, T extends DomainEvent<A>> {
+    /** Aggregate name under which service events recording state of the handler are saved to event store */
+    public final static String AGGREGATE_NAME = "handlers";
+    /** Event type used to mark handled events */
+    public final static String EVENT_TYPE_HANDLED = "handled";
+
     private final ForkJoinPool executor;
     private final EventDispatcher dispatcher;
     private final String origin;
@@ -64,9 +70,11 @@ public class EventPipeline<A, T extends DomainEvent<A>> {
     private Instant process(Event meta, T payload) {
         Stream<EmittedEvent> emitted = Stream.concat(
                 handler.apply(meta, payload),
-                Stream.of(EmittedEvent.of("handlers", handlerId, "handled"))
+                Stream.of(EmittedEvent.of(AGGREGATE_NAME, handlerId, EVENT_TYPE_HANDLED))
         );
-        executor.submit(() -> dispatcher.store(meta.getCauseId(), meta.getCorrId(), emitted));
+        String causeId = meta.getId();
+        String corrId = Optional.ofNullable(meta.getCorrId()).orElse(causeId);
+        executor.submit(() -> dispatcher.store(causeId, corrId, emitted));
         return meta.getStored();
     }
 
