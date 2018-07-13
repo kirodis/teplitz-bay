@@ -4,6 +4,7 @@ import com.github.yafna.events.Event;
 import com.github.yafna.events.annotations.EvType;
 import com.github.yafna.events.annotations.Handler;
 import com.github.yafna.events.handlers.DomainHandler;
+import com.github.yafna.events.handlers.DomainHandlerRegistry;
 import com.github.yafna.events.handlers.MapDomainHandlerRegistry;
 import com.github.yafna.events.utils.Enumerator;
 import lombok.SneakyThrows;
@@ -20,15 +21,34 @@ import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-
-public class EventScanner {
+/**
+ * Utility class for discovering scanning event classes and method handlers.
+ */
+public final class EventScanner {
+    /**
+     * Discovers event classes in a given package and indexes them into a map.
+     * 
+     * @param packageMarker class in a package 
+     * @return A map, where keys are event names and values are event classes.
+     */
     public static Map<String, Class<?>> events(Class<?> packageMarker) {
         return withAnnotation(Enumerator.getClasses(packageMarker), EvType.class).collect(
-                Collectors.toMap((entry) -> entry.getKey().value(), Entry::getValue)
+                Collectors.toMap(entry -> entry.getKey().value(), Entry::getValue)
         );
     }
 
-    public static <T> MapDomainHandlerRegistry<T> handlers(Class<T> clazz) {
+    /**
+     * Discovers methods of aggregate object that describe event handlers and returns an instance of
+     * {@link DomainHandlerRegistry} that stores them.
+     * This method validates a number of constraints, such as 
+     * - Not having multiple domain handlers on the same event type
+     * - Correct argument count and types  
+     * 
+     * @param clazz Aggregate object class to scan
+     * @see com.github.yafna.events.annotations.Handler
+     * @throws IllegalStateException if constraint validation fails 
+     */
+    public static <T> DomainHandlerRegistry<T> handlers(Class<T> clazz) {
         Method[] methods = clazz.getMethods();
         Map<String, List<DomainHandler<T, ?>>> handlers = withAnnotation(
                 Stream.of(methods), Handler.class
@@ -85,9 +105,9 @@ public class EventScanner {
     }
 
     private static <T extends Annotation, V extends AnnotatedElement> Stream<Entry<T, V>> withAnnotation(
-            Stream<V> x, Class<T> clazz
+            Stream<V> elements, Class<T> clazz
     ) {
-        return x.<Entry<T, V>>map(
+        return elements.<Entry<T, V>>map(
                 c -> new SimpleEntry<>(c.getAnnotation(clazz), c)
         ).filter(
                 entry -> entry.getKey() != null
