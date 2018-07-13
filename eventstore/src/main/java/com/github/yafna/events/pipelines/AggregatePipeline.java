@@ -3,6 +3,7 @@ package com.github.yafna.events.pipelines;
 import com.github.yafna.events.Event;
 import com.github.yafna.events.EventMeta;
 import com.github.yafna.events.aggregate.Aggregate;
+import com.github.yafna.events.aggregate.EventScanner;
 import com.github.yafna.events.annotations.Origin;
 import com.github.yafna.events.dispatcher.EventDispatcher;
 import com.github.yafna.events.handlers.DomainHandlerRegistry;
@@ -24,6 +25,19 @@ public class AggregatePipeline<A extends Aggregate> {
     private final DomainHandlerRegistry<A> handlers;
     private final Map<String, Class<?>> index;
     private final Function<String, A> constructor;
+
+    public AggregatePipeline(Class<A> clazz, EventDispatcher dispatcher, Function<String, A> constructor) {
+        this(clazz, dispatcher, EventScanner.handlers(clazz), constructor);
+    }
+
+    public AggregatePipeline(
+            Class<A> clazz,
+            EventDispatcher dispatcher,
+            DomainHandlerRegistry<A> handlers,
+            Function<String, A> constructor
+    ) {
+        this(clazz, dispatcher, EventScanner.events(clazz), handlers, constructor);
+    }
 
     /**
      * @param clazz Aggregate class

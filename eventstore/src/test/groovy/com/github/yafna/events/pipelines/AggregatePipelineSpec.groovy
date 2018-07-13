@@ -1,9 +1,7 @@
 package com.github.yafna.events.pipelines
 
 import com.github.yafna.events.Event
-import com.github.yafna.events.aggregate.EventScanner
 import com.github.yafna.events.dispatcher.GsonEventDispatcher
-import com.github.yafna.events.handlers.DomainHandlerRegistry
 import com.github.yafna.events.rabbits.Rabbit
 import com.github.yafna.events.rabbits.RabbitAdded
 import com.github.yafna.events.rabbits.RabbitInit
@@ -17,14 +15,9 @@ class AggregatePipelineSpec extends Specification {
 
     private GsonFileEventStore store = new GsonFileEventStore(Clock.systemUTC(), File.createTempDir())
 
-    Map<String, Class<?>> index = EventScanner.events(Rabbit)
-    DomainHandlerRegistry<Rabbit> handlers = EventScanner.handlers(Rabbit)
-
     def "push"() {
         given:
-            AggregatePipeline<Rabbit> subj = new AggregatePipeline(Rabbit.class, new GsonEventDispatcher(store), index, handlers, {
-                new Rabbit(it)
-            })
+            AggregatePipeline<Rabbit> subj = new AggregatePipeline(Rabbit.class, new GsonEventDispatcher(store), { new Rabbit(it) })
         when:
             Event added = subj.push("ABCD-1234", new RabbitAdded("Kirk", "Captain's key"))
         then:
@@ -38,9 +31,7 @@ class AggregatePipelineSpec extends Specification {
 
     def "create and update"() {
         given:
-            AggregatePipeline<Rabbit> subj = new AggregatePipeline(Rabbit.class, new GsonEventDispatcher(store), index, handlers, {
-                new Rabbit(it)
-            })
+            AggregatePipeline<Rabbit> subj = new AggregatePipeline(Rabbit.class, new GsonEventDispatcher(store), { new Rabbit(it) })
         when:
             Event added = subj.push("ABCD-1235", new RabbitAdded("Kirk", "Captain's key"))
         then:
@@ -57,9 +48,7 @@ class AggregatePipelineSpec extends Specification {
 
     def "init and push"() {
         given:
-            AggregatePipeline<Rabbit> subj = new AggregatePipeline(Rabbit.class, new GsonEventDispatcher(store), index, handlers, {
-                new Rabbit(it)
-            })
+            AggregatePipeline<Rabbit> subj = new AggregatePipeline(Rabbit.class, new GsonEventDispatcher(store), { new Rabbit(it) })
         when:
             Event added = subj.push("ABCD-1236", new RabbitInit())
         then:
