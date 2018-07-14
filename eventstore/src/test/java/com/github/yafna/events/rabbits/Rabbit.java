@@ -2,27 +2,25 @@ package com.github.yafna.events.rabbits;
 
 
 import com.github.yafna.events.Event;
-import com.github.yafna.events.aggregate.Aggregate;
-import com.github.yafna.events.annotations.Origin;
+import com.github.yafna.events.aggregate.MemoryAggregate;
 import com.github.yafna.events.annotations.Handler;
+import com.github.yafna.events.annotations.Origin;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Getter
 @Origin("rabbit")
 @Slf4j
 @RequiredArgsConstructor
-public class Rabbit implements Aggregate {
+public class Rabbit extends MemoryAggregate {
     private final String id;
     private Instant born;
     private Instant dead;
     private String name;
     private String publicKey;
-    private AtomicLong lastEvent = new AtomicLong(-1);
 
     @Handler(value = "init")
     public void create(Event meta) {

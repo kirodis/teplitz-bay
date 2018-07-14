@@ -1,11 +1,14 @@
 package com.github.yafna.events.pipelines
 
 import com.github.yafna.events.Event
+import com.github.yafna.events.aggregate.SingletonAggregate
+import com.github.yafna.events.dispatcher.EventDispatcher
 import com.github.yafna.events.dispatcher.GsonEventDispatcher
 import com.github.yafna.events.handlers.count.RabbitCountingHandler
 import com.github.yafna.events.handlers.count.Rabbits
 import com.github.yafna.events.rabbits.Rabbit
 import com.github.yafna.events.rabbits.RabbitAdded
+import com.github.yafna.events.store.EventStore
 import com.github.yafna.events.store.file.GsonFileEventStore
 import com.google.gson.Gson
 import spock.lang.Specification
@@ -20,14 +23,16 @@ class EventPipelineSpec extends Specification {
 
     ForkJoinPool executor = new ForkJoinPool()
     Clock clock = Clock.systemUTC()
-    GsonFileEventStore store = new GsonFileEventStore(clock, File.createTempDir())
+    EventStore store = new GsonFileEventStore(clock, File.createTempDir())
+    EventDispatcher dispatcher = new GsonEventDispatcher(store, executor)
 
     def 'given [rabbit.added] event persisted should call EventHandler for it'() {
         given:
             def handler = new RabbitCountingHandler()
             EventPipeline<Rabbit, RabbitAdded> subj = new EventPipeline(
-                    new GsonEventDispatcher(store, executor), RabbitAdded.class, handler, HANDLER_ID, clock, executor 
+                    dispatcher, RabbitAdded.class, handler, HANDLER_ID, clock, executor 
             )
+            AggregatePipeline<Rabbits> rabbits = new AggregatePipeline(Rabbits, dispatcher, { Rabbits.INSTANCE })
         when: "rabbit is added"
             def added1 = store.persist("rabbit", "1", "added", payload("Alfa", "Longear"))
             executor.awaitQuiescence(10, TimeUnit.SECONDS)
@@ -43,9 +48,10 @@ class EventPipelineSpec extends Specification {
         then: "count increases to 2"
             handler.count.get() == 2
             countedEvents.collect({it.payload}) == ['{"count":2,"message":"cool"}']
-
+        and: "rabbits aggregate is updated"
+            rabbits.get(SingletonAggregate.ID).lastMessage == "cool"
         when: "rabbit is fried"
-            store.persist("rabbit", "5", "fried", payload("Gamma", "Hot"))
+            store.persist("rabbit", "2", "fried", payload("Gamma", "Hot"))
             executor.awaitQuiescence(10, TimeUnit.SECONDS)
         then: "count does not change - a fried rabbit is still a rabbit"
             handler.count.get() == 2
