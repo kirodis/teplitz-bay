@@ -12,7 +12,13 @@ import com.github.yafna.events.Event;
 public interface DomainHandler<A, T> {
 
     /**
-     * Apply event
+     * Applies event to aggregate. 
+     * The implementation is free to mutate and return the original object or create a new instance.
+     * While the latter approach is considered to be cleaner from multi-threaded perspective, 
+     * it is often impractical with larger objects, especially if some fields are normal java collections.
+     * Of course, you can use some 'functional' Java library (such as vavr.io) to get immutable collections,
+     * howeve we don't expect everybody who might use our library to do so.
+     * 
      * @param object domain object to which state is applied
      * @param meta metadata of the event being processed
      * @param payload event payload
