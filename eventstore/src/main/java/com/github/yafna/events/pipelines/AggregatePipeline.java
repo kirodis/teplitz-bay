@@ -86,6 +86,7 @@ public class AggregatePipeline<A extends Aggregate> {
     private <T> void handle(A object, Event event, T payload) {
         // Here we rely that deserializer in dispatcher produces plain objects, not some crazy reflection / asm stuff
         // TODO This is not the greatest assumption to make, we need to reconsider the approach here 
+        @SuppressWarnings("unchecked") 
         Class<T> type = (Class<T>) payload.getClass();
         String id = event.getId();
         log.debug("Handling {} [{}/{}]", id, event.getType(), event.getAggregateId());
