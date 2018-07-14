@@ -29,10 +29,17 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * A trivial file-based implementation of external event storage.
+ * Events are stored in 2-level directory structure, where first level groups together aggregate types
+ * and second level directories are named by aggregate id. 
+ * Each event is stored as a separate file under corresponding aggregate id. 
+ */
 @Slf4j
 @AllArgsConstructor
 public class FileEventStore implements EventStore {
@@ -48,21 +55,18 @@ public class FileEventStore implements EventStore {
     private final Function<StoredEvent, byte[]> serializer;
     private final Function<byte[], StoredEvent> deserializer;
 
+    /**
+     * Event subscribers, indexed by aggregate name, nested map indexed by event type
+     */
     private final ConcurrentMap<String, ConcurrentMap<String, List<Consumer<Event>>>> subscribers = new ConcurrentHashMap<>();
 
-    /**
-     * Retrieves events for a given aggregate.
-     *
-     * @param origin Aggregate type
-     * @param aggregateId aggregate id
-     * @param fromSeq event sequence number after which events should be returned
-     */
     @Override
     public Stream<Event> getEvents(String origin, String aggregateId, Long fromSeq) {
         BiPredicate<Path, BasicFileAttributes> filter = Optional.ofNullable(fromSeq).map(
                 seq -> NOT_DIRECTORY.and(isAfter(seq))
         ).orElse(NOT_DIRECTORY);
-        Path path = getDirectory(origin, Optional.ofNullable(aggregateId));
+        Path aggregateDir = path(origin);
+        Path path = Optional.ofNullable(aggregateId).map(aggregateDir::resolve).orElse(aggregateDir);
 
         return Files.exists(path) ? readEvents(ensureDirectory(path), filter).sequential() : Stream.empty();
     }
@@ -73,7 +77,7 @@ public class FileEventStore implements EventStore {
         Path path = path(origin);
         if (Files.exists(path)) {
             Spliterator<Event> spliterator = Files.find(
-                    path, 2, isFileCreatedAfter(since, type)
+                    path, 2, notDirectoryAndMatches(hasTypeAndCreatedAfter(type, since))
             ).map(this::readEvent).filter(
                     event -> event.getType().equals(type)
             ).sorted(
@@ -115,7 +119,10 @@ public class FileEventStore implements EventStore {
         event.setPayload(payload);
         event.setId(generateId());
         event.setStored(clock.instant());
-        return write(event);
+
+        StoredEvent stored = write(event);
+        callSubscribers(stored);
+        return stored;
     }
 
     @Override
@@ -131,17 +138,11 @@ public class FileEventStore implements EventStore {
             event.setPayload(p.getPayload());
             event.setId(generateId());
             event.setStored(timestamp);
-            return write0(event);
+            return write(event);
         }).collect(Collectors.toList());
         // Have to ensure all the events are stored before calling subscribers 
         stored.forEach(this::callSubscribers);
-        return stored.size(); 
-    }
-
-    private StoredEvent write(StoredEvent event) {
-        StoredEvent stored = write0(event);
-        callSubscribers(stored);
-        return stored;
+        return stored.size();
     }
 
     private void callSubscribers(StoredEvent stored) {
@@ -154,10 +155,10 @@ public class FileEventStore implements EventStore {
         );
     }
 
-    private StoredEvent write0(StoredEvent event) {
-        String dir = event.getOrigin();
+    private StoredEvent write(StoredEvent event) {
+        Path aggregateRoot = path(event.getOrigin());
         Optional<String> aggregateId = Optional.ofNullable(event.getAggregateId());
-        Path directory = getDirectory(dir, aggregateId);
+        Path directory = aggregateId.map(aggregateRoot::resolve).orElse(aggregateRoot);
         Path path = ensureDirectoryExists(directory);
 
         String name = aggregateId.map(aid -> {
@@ -177,11 +178,6 @@ public class FileEventStore implements EventStore {
         }
     }
 
-    private Path getDirectory(String dir, Optional<String> aggregateId) {
-        Path aggregateDir = path(dir);
-        return aggregateId.map(aggregateDir::resolve).orElse(aggregateDir);
-    }
-
     private Path path(String dir) {
         return new File(rootDir, dir).toPath();
     }
@@ -198,15 +194,15 @@ public class FileEventStore implements EventStore {
      * Extracts sequence number form event file name.
      */
     private static Long getSeq(Path path) {
-        return ((Number) parse(path)[0]).longValue();
-    }
-
-    private static Object[] parse(Path path) {
-        String name = path.toString();
+        String pathname = path.toString();
         try {
-            return new MessageFormat(NAME_PATTERN_SEQ).parse(name);
+            // TODO Performance test
+            // MessageFormat here is likely to be inefficient here, especially since we instantiate it each time  
+            Object[] result = new MessageFormat(NAME_PATTERN_SEQ).parse(pathname);
+            return ((Number) result[0]).longValue();
         } catch (ParseException e) {
-            throw new IllegalArgumentException("Error parsing file path: " + name, e);
+            // At this point we are parsing  
+            throw new IllegalArgumentException("Error parsing file [" + pathname + "]", e);
         }
     }
 
@@ -242,21 +238,28 @@ public class FileEventStore implements EventStore {
         };
     }
 
-    private static BiPredicate<Path, BasicFileAttributes> isFileCreatedAfter(Instant since, String type) {
+    private static BiPredicate<Path, BasicFileAttributes> notDirectoryAndMatches(Predicate<Object[]> predicate) {
+        return (path, attributes) -> !Files.isDirectory(path) && pathMatches(path, predicate);
+    }
+
+    private static boolean pathMatches(Path path, Predicate<Object[]> predicate) {
+        String name = path.getFileName().toString();
+        try {
+            return predicate.test(new MessageFormat(NAME_PATTERN_SEQ).parse(name));
+        } catch (ParseException e) {
+            log.warn("Ignoring not parseable file name [{}]", name);
+            return false;
+        }
+    }
+
+    private static Predicate<Object[]> hasTypeAndCreatedAfter(String type, Instant since) {
         String sinceString = since.toString();
-        return (path, attributes) -> {
-            if (Files.isDirectory(path)) {
-                return false;
-            } else {
-                Object[] parse = parse(path.getFileName());
-                return ((String) parse[1]).compareTo(sinceString) > 0 && Objects.equals(type, (String) parse[3]);
-            }
-        };
+        return parse -> Objects.equals(type, parse[3]) && ((String) parse[1]).compareTo(sinceString) > 0;
     }
 
     private static String formatTime(Instant stored) {
+        // TODO A proper DateTimeFormatter
         return String.valueOf(stored).replace(":", "-");
     }
-
 
 }
