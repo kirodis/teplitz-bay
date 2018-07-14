@@ -13,7 +13,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -21,10 +21,12 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
- * This class has the following responsibilities:
- * 1. Manage serialization and deserialization of events
- * 2. Notify pipelines about stored events
- * 3. Manage transactions if event store behind it supports them
+ * Manages serialization and deserialization of events, dispatches emitted events from pipelines to event store
+ * and notifies pipelines about stored events. Since each pipeline refers exactly one dispatcher, pipelines that
+ * refer to different dispatchers backed up by different stores are independent.
+ * This is useful when multiple message flows need to be isolated from each other inside one application.
+ *
+ * Application classes should not deal with {@link EventDispatcher} directly, but refer to pipelines instead.
  */
 @AllArgsConstructor
 @Slf4j
@@ -32,7 +34,7 @@ public abstract class EventDispatcher {
     private final static String UNKNOWN_TYPE = "Unknown type";
 
     private final EventStore store;
-    private final ForkJoinPool executor;
+    private final ExecutorService executor;
 
     public <T> Event store(String origin, String aggregateId, T event) {
         String type = event.getClass().getAnnotation(EvType.class).value();
@@ -41,9 +43,9 @@ public abstract class EventDispatcher {
     }
 
     public long store(String causeId, String corrId, Stream<EmittedEvent> events) {
-        ProtoEvent[] protoEvents = events.map(emitted -> {
-            String json = serialize(emitted.getPayload());
-            return new ProtoEvent(emitted.getOrigin(), emitted.getAggregateId(), emitted.getType(), json);
+        ProtoEvent[] protoEvents = events.map(event -> {
+            String json = serialize(event.getPayload());
+            return new ProtoEvent(event.getOrigin(), event.getAggregateId(), event.getType(), json);
         }).toArray(ProtoEvent[]::new);
         // Array used here to be sure that all the events are successfully serialized at this point
         return store.persist(causeId, corrId, protoEvents);
